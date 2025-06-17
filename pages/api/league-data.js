@@ -21,6 +21,7 @@ export default async function handler(req, res) {
 
   // Validate leagueId
   if (!leagueId) {
+    console.error("API Error: League ID is required.");
     return res.status(400).json({ error: 'League ID is required.' });
   }
 
@@ -33,55 +34,72 @@ export default async function handler(req, res) {
       case 'league':
         // Fetch basic league details
         apiUrl = `${SLEEPER_API_BASE_URL}/league/${leagueId}`;
+        console.log(`Fetching league: ${apiUrl}`);
         const leagueRes = await fetch(apiUrl);
-        if (!leagueRes.ok) throw new Error(`Sleeper API error: ${leagueRes.statusText}`);
+        if (!leagueRes.ok) throw new Error(`Sleeper API error: ${leagueRes.statusText} (Status: ${leagueRes.status})`);
         data = await leagueRes.json();
+        console.log(`Fetched league data for ${leagueId}:`, JSON.stringify(data, null, 2));
         break;
       case 'users':
         // Fetch all users (managers) in the league
         apiUrl = `${SLEEPER_API_BASE_URL}/league/${leagueId}/users`;
+        console.log(`Fetching users: ${apiUrl}`);
         const usersRes = await fetch(apiUrl);
-        if (!usersRes.ok) throw new Error(`Sleeper API error: ${usersRes.statusText}`);
+        if (!usersRes.ok) throw new Error(`Sleeper API error: ${usersRes.statusText} (Status: ${usersRes.status})`);
         data = await usersRes.json();
+        console.log(`Fetched users data for ${leagueId}:`, JSON.stringify(data, null, 2));
         break;
       case 'rosters':
         // Fetch all rosters (teams) in the league
         apiUrl = `${SLEEPER_API_BASE_URL}/league/${leagueId}/rosters`;
+        console.log(`Fetching rosters: ${apiUrl}`);
         const rostersRes = await fetch(apiUrl);
-        if (!rostersRes.ok) throw new Error(`Sleeper API error: ${rostersRes.statusText}`);
+        if (!rostersRes.ok) throw new Error(`Sleeper API error: ${rostersRes.statusText} (Status: ${rostersRes.status})`);
         data = await rostersRes.json();
+        console.log(`Fetched rosters data for ${leagueId}:`, JSON.stringify(data, null, 2));
         break;
       case 'matchups':
         // Fetch matchups for a specific week and season
         if (!week || !season) {
+          console.error("API Error: Week and season are required for matchups.");
           return res.status(400).json({ error: 'Week and season are required for matchups.' });
         }
         apiUrl = `${SLEEPER_API_BASE_URL}/league/${leagueId}/matchups/${week}`;
+        console.log(`Fetching matchups: ${apiUrl}`);
         const matchupsRes = await fetch(apiUrl);
-        if (!matchupsRes.ok) throw new Error(`Sleeper API error: ${matchupsRes.statusText}`);
+        if (!matchupsRes.ok) throw new Error(`Sleeper API error: ${matchupsRes.statusText} (Status: ${matchupsRes.status})`);
         data = await matchupsRes.json();
+        console.log(`Fetched matchups data for ${leagueId}, week ${week}:`, JSON.stringify(data, null, 2));
         break;
       case 'drafts':
         // Fetch all drafts for a league (for historical draft info)
         apiUrl = `${SLEEPER_API_BASE_URL}/league/${leagueId}/drafts`;
+        console.log(`Fetching drafts: ${apiUrl}`);
         const draftsRes = await fetch(apiUrl);
-        if (!draftsRes.ok) throw new Error(`Sleeper API error: ${draftsRes.statusText}`);
+        if (!draftsRes.ok) throw new Error(`Sleeper API error: ${draftsRes.statusText} (Status: ${draftsRes.status})`);
         data = await draftsRes.json();
+        console.log(`Fetched drafts data for ${leagueId}:`, JSON.stringify(data, null, 2));
         break;
       case 'standings':
         // This case will trigger an aggregation of league, users, and rosters data
         // to compute standings. This is not a direct Sleeper API call.
         if (!season) {
+          console.error("API Error: Season is required for standings.");
           return res.status(400).json({ error: 'Season is required for standings.' });
         }
+        console.log(`Aggregating standings for ${leagueId}, season ${season}`);
         data = await fetchStandings(leagueId, season, SLEEPER_API_BASE_URL);
+        console.log(`Aggregated standings for ${leagueId}, season ${season}:`, JSON.stringify(data, null, 2));
         break;
       case 'champions':
         // This case aggregates champion data across multiple seasons.
+        console.log(`Aggregating champions history for ${leagueId}`);
         data = await fetchLeagueHistory(leagueId, SLEEPER_API_BASE_URL);
+        console.log(`Aggregated champions history for ${leagueId}:`, JSON.stringify(data, null, 2));
         break;
       default:
         // Handle unsupported data types
+        console.error(`API Error: Invalid data type requested: ${dataType}`);
         return res.status(400).json({ error: 'Invalid data type requested.' });
     }
 
@@ -101,37 +119,43 @@ export default async function handler(req, res) {
  * @param {string} leagueId - The ID of the current league.
  * @param {string} season - The season to fetch standings for.
  * @param {string} baseUrl - The base URL for the Sleeper API.
- * @returns {Promise<Array<object>>} - A promise that resolves to an array of standings.
+ * @returns {Promise<object>} - A promise that resolves to an object containing season, standings, and league name.
  */
 async function fetchStandings(leagueId, season, baseUrl) {
-  // Fetch league, rosters, and users data concurrently
+  console.log(`Fetching data for standings aggregation for league ${leagueId}, season ${season}`);
   const [leagueRes, rostersRes, usersRes] = await Promise.all([
     fetch(`${baseUrl}/league/${leagueId}`),
     fetch(`${baseUrl}/league/${leagueId}/rosters`),
     fetch(`${baseUrl}/league/${leagueId}/users`)
   ]);
 
-  // Check if all responses are OK
-  if (!leagueRes.ok) throw new Error(`Sleeper API error (league): ${leagueRes.statusText}`);
-  if (!rostersRes.ok) throw new Error(`Sleeper API error (rosters): ${rostersRes.statusText}`);
-  if (!usersRes.ok) throw new Error(`Sleeper API error (users): ${usersRes.statusText}`);
+  if (!leagueRes.ok) throw new Error(`Sleeper API error (league) for standings: ${leagueRes.statusText} (Status: ${leagueRes.status})`);
+  if (!rostersRes.ok) throw new Error(`Sleeper API error (rosters) for standings: ${rostersRes.statusText} (Status: ${rostersRes.status})`);
+  if (!usersRes.ok) throw new Error(`Sleeper API error (users) for standings: ${usersRes.statusText} (Status: ${usersRes.status})`);
 
-  // Parse JSON responses
   const league = await leagueRes.json();
   const rosters = await rostersRes.json();
   const users = await usersRes.json();
 
+  console.log(`Raw League data for standings:`, JSON.stringify(league, null, 2));
+  console.log(`Raw Rosters data for standings:`, JSON.stringify(rosters, null, 2));
+  console.log(`Raw Users data for standings:`, JSON.stringify(users, null, 2));
+
   const userMap = new Map(users.map(user => [user.user_id, user.display_name || user.username]));
-  const rosterMap = new Map(rosters.map(roster => [roster.roster_id, roster]));
+
+  if (!rosters || rosters.length === 0) {
+    console.warn(`No rosters found for league ${leagueId}, season ${season}. Cannot compute standings.`);
+    return { season, standings: [], league_name: league.name };
+  }
 
   // Calculate wins, losses, and total points for each roster
   const standings = rosters.map(roster => {
-    // Ensure wins/losses/ties exist, default to 0 if not present
-    const wins = roster.settings?.wins || 0;
-    const losses = roster.settings?.losses || 0;
-    const ties = roster.settings?.ties || 0;
-    const fpts = roster.settings?.fpts || 0;
-    const fpts_decimal = roster.settings?.fpts_decimal || 0;
+    // Safely access properties with default values
+    const wins = roster.settings?.wins ?? 0;
+    const losses = roster.settings?.losses ?? 0;
+    const ties = roster.settings?.ties ?? 0;
+    const fpts = roster.settings?.fpts ?? 0;
+    const fpts_decimal = roster.settings?.fpts_decimal ?? 0;
 
     return {
       roster_id: roster.roster_id,
@@ -140,7 +164,6 @@ async function fetchStandings(leagueId, season, baseUrl) {
       losses: losses,
       ties: ties,
       total_points: parseFloat(`${fpts}.${fpts_decimal}`), // Combine fpts and fpts_decimal
-      // Other relevant roster info can be added here
     };
   });
 
@@ -168,60 +191,60 @@ async function fetchLeagueHistory(currentLeagueId, baseUrl, history = []) {
     return history; // Base case: no more previous leagues
   }
 
+  console.log(`Fetching historical data for league ${currentLeagueId}`);
+
   try {
     // Fetch league details for the current ID
     const leagueRes = await fetch(`${baseUrl}/league/${currentLeagueId}`);
-    if (!leagueRes.ok) throw new Error(`Sleeper API error (league history): ${leagueRes.statusText}`);
+    if (!leagueRes.ok) throw new Error(`Sleeper API error (league history): ${leagueRes.statusText} (Status: ${leagueRes.status})`);
     const league = await leagueRes.json();
+    console.log(`Raw League data for history (season ${league.season}):`, JSON.stringify(league, null, 2));
 
     // Fetch rosters for the current league
     const rostersRes = await fetch(`${baseUrl}/league/${currentLeagueId}/rosters`);
-    if (!rostersRes.ok) throw new Error(`Sleeper API error (rosters history): ${rostersRes.statusText}`);
+    if (!rostersRes.ok) throw new Error(`Sleeper API error (rosters history): ${rostersRes.statusText} (Status: ${rostersRes.status})`);
     const rosters = await rostersRes.json();
+    console.log(`Raw Rosters data for history (season ${league.season}):`, JSON.stringify(rosters, null, 2));
 
     // Fetch users for the current league
     const usersRes = await fetch(`${baseUrl}/league/${currentLeagueId}/users`);
-    if (!usersRes.ok) throw new Error(`Sleeper API error (users history): ${usersRes.statusText}`);
+    if (!usersRes.ok) throw new Error(`Sleeper API error (users history): ${usersRes.statusText} (Status: ${usersRes.status})`);
     const users = await usersRes.json();
+    console.log(`Raw Users data for history (season ${league.season}):`, JSON.stringify(users, null, 2));
 
     // Map user IDs to display names
     const userMap = new Map(users.map(user => [user.user_id, user.display_name || user.username]));
 
     let championOwner = 'Unknown';
-    // The champion is usually the roster with a win_total of 1 in playoffs, or max wins if playoffs not explicitly tracked in API
-    // Sleeper API's league settings often have 'playoff_start_week' and 'championship_week'
-    // To identify a champion, we look for the roster with the 'last_played_week' (or similar logic)
-    // and a 'rank' of 1 in the standings, or simply the most wins if no explicit champion field.
-    // For simplicity, we'll assume the champion is the roster with `rank: 1` if available or the one with the most wins and a high score.
-    // However, the Sleeper API doesn't directly give 'champion' status for past leagues.
-    // We'll rely on the `roster.settings.wins` and `roster.settings.championships` (if present, though rare for historical via API)
-    // For now, we'll try to find the team with the most wins and best playoff standing if available,
-    // or simply mark the team with the highest `roster.settings.fpts` if `previous_league_id` exists.
-
-    // A more accurate way to determine the champion would be to fetch the playoff bracket
-    // for the league and identify the winner of the final match.
-    // Example endpoint for playoff bracket: `GET /v1/league/<league_id>/winners_bracket`
-    // This is more complex, so for simplicity, we'll rely on `rosters` data for now.
-
     let championRoster = null;
     let maxWins = -1;
     let maxPoints = -1;
 
-    // Find the roster with the most wins, then most points, as a proxy for champion
-    rosters.forEach(roster => {
-      const wins = roster.settings?.wins || 0;
-      const fpts = parseFloat(`${roster.settings?.fpts || 0}.${roster.settings?.fpts_decimal || 0}`);
+    if (rosters && rosters.length > 0) {
+        // Find the roster with the most wins, then most points, as a proxy for champion
+        rosters.forEach(roster => {
+          // Safely access properties with default values
+          const wins = roster.settings?.wins ?? 0;
+          const fpts = roster.settings?.fpts ?? 0;
+          const fpts_decimal = roster.settings?.fpts_decimal ?? 0;
+          const totalPoints = parseFloat(`${fpts}.${fpts_decimal}`);
 
-      if (wins > maxWins || (wins === maxWins && fpts > maxPoints)) {
-        maxWins = wins;
-        maxPoints = fpts;
-        championRoster = roster;
-      }
-    });
+          if (wins > maxWins || (wins === maxWins && totalPoints > maxPoints)) {
+            maxWins = wins;
+            maxPoints = totalPoints;
+            championRoster = roster;
+          }
+        });
 
-    if (championRoster) {
-      championOwner = userMap.get(championRoster.owner_id) || 'Unknown Owner';
+        if (championRoster) {
+          championOwner = userMap.get(championRoster.owner_id) || 'Unknown Owner';
+        } else {
+          console.warn(`No champion roster found based on wins/points for league ${currentLeagueId}, season ${league.season}.`);
+        }
+    } else {
+        console.warn(`No rosters available for league ${currentLeagueId}, season ${league.season}. Cannot determine champion.`);
     }
+
 
     // Add current league's champion and season to history
     history.push({
