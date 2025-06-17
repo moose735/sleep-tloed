@@ -187,8 +187,9 @@ async function fetchStandings(leagueId, season, baseUrl) {
  * @returns {Promise<Array<object>>} - A promise that resolves to an array of league history, including champions.
  */
 async function fetchLeagueHistory(currentLeagueId, baseUrl, history = []) {
-  if (!currentLeagueId) {
-    return history; // Base case: no more previous leagues
+  // IMPORTANT: Add condition to stop if previous_league_id is '0'
+  if (!currentLeagueId || currentLeagueId === '0') {
+    return history; // Base case: no more previous leagues or invalid ID
   }
 
   console.log(`Fetching historical data for league ${currentLeagueId}`);
@@ -196,7 +197,15 @@ async function fetchLeagueHistory(currentLeagueId, baseUrl, history = []) {
   try {
     // Fetch league details for the current ID
     const leagueRes = await fetch(`${baseUrl}/league/${currentLeagueId}`);
-    if (!leagueRes.ok) throw new Error(`Sleeper API error (league history): ${leagueRes.statusText} (Status: ${leagueRes.status})`);
+    if (!leagueRes.ok) {
+      // Log the error but don't throw, so we can continue with other historical data
+      console.error(`Sleeper API error (league history) for ${currentLeagueId}: ${leagueRes.statusText} (Status: ${leagueRes.status})`);
+      // If a specific league ID in the chain is Not Found, stop the recursion for this path
+      if (leagueRes.status === 404) {
+        return history;
+      }
+      throw new Error(`Sleeper API error: ${leagueRes.statusText} (Status: ${leagueRes.status})`);
+    }
     const league = await leagueRes.json();
     console.log(`Raw League data for history (season ${league.season}):`, JSON.stringify(league, null, 2));
 
