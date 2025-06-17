@@ -16,7 +16,7 @@ const HomePage = () => {
   const [currentLeagueId, setCurrentLeagueId] = useState(hardcodedLeagueId);
   const [leagueData, setLeagueData] = useState(null);
   const [leagueUsers, setLeagueUsers] = useState([]);
-  const [leagueRosters, setLeagueRosters] = useState([]);
+  const [leagueRosters, setLeagueRosters] = useState([]); // Keep track of rosters if needed for other UI elements
   const [leagueHistory, setLeagueHistory] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState('');
   const [selectedStandings, setSelectedStandings] = useState(null);
@@ -24,8 +24,6 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState(''); // General success/info messages
-
-  // No debounce needed as leagueId is hardcoded
 
   /**
    * Fetches data from our Next.js API route.
@@ -80,13 +78,13 @@ const HomePage = () => {
         const [league, users, rosters] = await Promise.all([
           fetchData('league'),
           fetchData('users'),
-          fetchData('rosters')
+          fetchData('rosters') // Fetch rosters here as it's needed for standings/champions
         ]);
 
         if (league) {
           setLeagueData(league);
           setLeagueUsers(users || []);
-          setLeagueRosters(rosters || []);
+          setLeagueRosters(rosters || []); // Store rosters
           setMessage(`Successfully loaded data for ${league.name} (${league.season} season).`);
 
           // Fetch historical champions based on the current league (which might have a previous_league_id)
@@ -94,6 +92,7 @@ const HomePage = () => {
           setLeagueHistory(history || []);
 
           // Set the current season as the default selected season for standings
+          // If no history, default to current league's season
           setSelectedSeason(league.season);
 
         } else {
@@ -161,7 +160,7 @@ const HomePage = () => {
         )}
 
         {/* Display League Overview */}
-        {leagueData && !isLoading && !error && (
+        {leagueData && !isLoading && !error ? (
           <section className="mb-8 p-4 bg-secondary rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold text-accent mb-3">League Overview: {leagueData.name}</h2>
             <p className="text-textLight mb-1">Current Season: <span className="font-medium">{leagueData.season}</span></p>
@@ -169,11 +168,17 @@ const HomePage = () => {
             {leagueData.previous_league_id && (
               <p className="text-textLight">Previous League ID: <span className="font-medium">{leagueData.previous_league_id}</span></p>
             )}
+            {/* Display message if users or rosters data is unexpectedly empty */}
+            {leagueUsers.length === 0 && <p className="text-sm text-yellow-400 mt-2">Warning: No user data found for this league. Team names may not display correctly.</p>}
+            {leagueRosters.length === 0 && <p className="text-sm text-yellow-400 mt-2">Warning: No roster data found for this league. Standings and champions may not be available.</p>}
           </section>
+        ) : !isLoading && !error && (
+            <p className="text-textLight text-center py-4">Enter your League ID to view history and stats.</p>
         )}
 
+
         {/* Display League History (Champions) */}
-        {leagueHistory.length > 0 && !isLoading && !error && (
+        {leagueHistory.length > 0 && !isLoading && !error ? (
           <section className="mb-8 p-4 bg-secondary rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold text-accent mb-3">League Champions</h2>
             <div className="overflow-x-auto">
@@ -200,10 +205,12 @@ const HomePage = () => {
               (Champion determined by highest wins/points in the last known season data through the Sleeper API.)
             </p>
           </section>
+        ) : leagueData && !isLoading && !error && (
+            <p className="text-textLight text-center py-4">No historical champion data available for this league.</p>
         )}
 
         {/* Display Standings for Selected Season */}
-        {leagueData && leagueUsers.length > 0 && leagueRosters.length > 0 && !isLoading && !error && (
+        {selectedStandings && selectedStandings.standings && selectedStandings.standings.length > 0 && !isLoading && !error ? (
           <section className="p-4 bg-secondary rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold text-accent mb-3">League Standings</h2>
             <div className="mb-4">
@@ -225,37 +232,35 @@ const HomePage = () => {
               </select>
             </div>
 
-            {selectedStandings && selectedStandings.standings && selectedStandings.standings.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-inputBg rounded-lg overflow-hidden">
-                  <thead className="bg-gray-700 text-textLight">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Rank</th>
-                      <th className="px-4 py-2 text-left">Team Owner</th>
-                      <th className="px-4 py-2 text-left">Wins</th>
-                      <th className="px-4 py-2 text-left">Losses</th>
-                      <th className="px-4 py-2 text-left">Ties</th>
-                      <th className="px-4 py-2 text-left">Total Points</th>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-inputBg rounded-lg overflow-hidden">
+                <thead className="bg-gray-700 text-textLight">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Rank</th>
+                    <th className="px-4 py-2 text-left">Team Owner</th>
+                    <th className="px-4 py-2 text-left">Wins</th>
+                    <th className="px-4 py-2 text-left">Losses</th>
+                    <th className="px-4 py-2 text-left">Ties</th>
+                    <th className="px-4 py-2 text-left">Total Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedStandings.standings.map((team, index) => (
+                    <tr key={team.roster_id} className="border-b border-gray-600 last:border-b-0 hover:bg-gray-700 transition-colors duration-150">
+                      <td className="px-4 py-2">{index + 1}</td>
+                      <td className="px-4 py-2 font-medium">{team.owner}</td>
+                      <td className="px-4 py-2">{team.wins}</td>
+                      <td className="px-4 py-2">{team.losses}</td>
+                      <td className="px-4 py-2">{team.ties}</td>
+                      <td className="px-4 py-2">{team.total_points.toFixed(2)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {selectedStandings.standings.map((team, index) => (
-                      <tr key={team.roster_id} className="border-b border-gray-600 last:border-b-0 hover:bg-gray-700 transition-colors duration-150">
-                        <td className="px-4 py-2">{index + 1}</td>
-                        <td className="px-4 py-2 font-medium">{team.owner}</td>
-                        <td className="px-4 py-2">{team.wins}</td>
-                        <td className="px-4 py-2">{team.losses}</td>
-                        <td className="px-4 py-2">{team.ties}</td>
-                        <td className="px-4 py-2">{team.total_points.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-textLight text-center py-4">No standings data available for this season or league.</p>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
+        ) : leagueData && !isLoading && !error && (
+            <p className="text-textLight text-center py-4">No standings data available for the selected season or league.</p>
         )}
       </main>
 
