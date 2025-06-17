@@ -6,13 +6,14 @@ import LoadingSpinner from '../components/LoadingSpinner';
 /**
  * HomePage Component
  * This is the main page for the fantasy football league history site.
- * It allows users to input a Sleeper League ID and displays
- * the league's history, standings, and other relevant information.
+ * It now displays history and statistics for a specific, pre-configured league.
  */
 const HomePage = () => {
-  // State variables for league ID, fetched data, loading status, and errors
-  const [leagueIdInput, setLeagueIdInput] = useState('');
-  const [currentLeagueId, setCurrentLeagueId] = useState('');
+  // Hardcode your specific Sleeper League ID here
+  // IMPORTANT: Replace 'YOUR_LEAGUE_ID_HERE' with your actual League ID.
+  const hardcodedLeagueId = '1181984921049018368'; // Example: '9876543210'
+
+  const [currentLeagueId, setCurrentLeagueId] = useState(hardcodedLeagueId);
   const [leagueData, setLeagueData] = useState(null);
   const [leagueUsers, setLeagueUsers] = useState([]);
   const [leagueRosters, setLeagueRosters] = useState([]);
@@ -24,19 +25,7 @@ const HomePage = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState(''); // General success/info messages
 
-  // Debounce input to prevent excessive API calls while typing
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      // Only set currentLeagueId if the input has changed and is not empty
-      if (leagueIdInput && leagueIdInput !== currentLeagueId) {
-        setCurrentLeagueId(leagueIdInput);
-      }
-    }, 500); // 500ms debounce time
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [leagueIdInput, currentLeagueId]);
+  // No debounce needed as leagueId is hardcoded
 
   /**
    * Fetches data from our Next.js API route.
@@ -49,7 +38,8 @@ const HomePage = () => {
     setError('');
     setMessage('');
     try {
-      const queryString = new URLSearchParams({ leagueId: currentLeagueId, dataType, ...params }).toString();
+      // Ensure the hardcodedLeagueId is used for API calls
+      const queryString = new URLSearchParams({ leagueId: hardcodedLeagueId, dataType, ...params }).toString();
       const response = await fetch(`/api/league-data?${queryString}`);
       const data = await response.json();
 
@@ -64,19 +54,20 @@ const HomePage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentLeagueId]);
+  }, [hardcodedLeagueId]); // Depend on hardcodedLeagueId
 
   /**
-   * Main effect to fetch all necessary league data when currentLeagueId changes.
+   * Main effect to fetch all necessary league data when the component mounts or hardcodedLeagueId changes.
    */
   useEffect(() => {
     const getAllLeagueData = async () => {
-      if (!currentLeagueId) {
+      if (!currentLeagueId || currentLeagueId === 'YOUR_LEAGUE_ID_HERE') {
         setLeagueData(null);
         setLeagueUsers([]);
         setLeagueRosters([]);
         setLeagueHistory([]);
         setSelectedStandings(null);
+        setError('Please set your league ID in the code (pages/index.js).');
         return;
       }
 
@@ -106,7 +97,7 @@ const HomePage = () => {
           setSelectedSeason(league.season);
 
         } else {
-          setError('Could not find league data. Please check the League ID.');
+          setError('Could not find league data. Please ensure the hardcoded League ID is correct.');
           setLeagueData(null);
           setLeagueUsers([]);
           setLeagueRosters([]);
@@ -121,7 +112,7 @@ const HomePage = () => {
     };
 
     getAllLeagueData();
-  }, [currentLeagueId, fetchData]);
+  }, [currentLeagueId, fetchData]); // Only run on mount and if currentLeagueId changes
 
   /**
    * Effect to fetch standings when selectedSeason or currentLeagueId changes.
@@ -149,21 +140,12 @@ const HomePage = () => {
       <header className="w-full max-w-4xl text-center mb-8">
         <h1 className="text-4xl font-bold text-accent mb-4">Fantasy Football League History</h1>
         <p className="text-lg text-textLight">
-          Enter your Sleeper League ID to explore its history and statistics.
+          Explore the history and statistics of your specific fantasy football league.
         </p>
       </header>
 
       <main className="w-full max-w-4xl bg-cardBg rounded-lg shadow-xl p-6 mb-8">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-          <input
-            type="text"
-            className="flex-grow p-3 rounded-md bg-inputBg text-textLight placeholder-gray-400 border border-gray-600 focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-200 ease-in-out"
-            placeholder="Enter Sleeper League ID (e.g., 1234567890)"
-            value={leagueIdInput}
-            onChange={(e) => setLeagueIdInput(e.target.value)}
-          />
-          {/* No explicit button needed due to debounced input change triggering fetch */}
-        </div>
+        {/* The input field has been removed as the league ID is now hardcoded */}
 
         {/* Loading and Error Messages */}
         {isLoading && <LoadingSpinner />}
