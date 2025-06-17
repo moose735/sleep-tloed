@@ -9,6 +9,11 @@
  * @param {object} res - The outgoing response object.
  */
 export default async function handler(req, res) {
+  // Set headers to prevent caching for this API route
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   const { leagueId, dataType, week, season } = req.query; // Destructure query parameters
 
   // Base URL for the Sleeper API
@@ -193,8 +198,8 @@ async function fetchLeagueHistory(currentLeagueId, baseUrl, history = []) {
     // For now, we'll try to find the team with the most wins and best playoff standing if available,
     // or simply mark the team with the highest `roster.settings.fpts` if `previous_league_id` exists.
 
-    // A more robust way to find champions is often to check if a roster has `playoff_wins > 0`
-    // or by looking at the playoff bracket (which would require more calls).
+    // A more accurate way to determine the champion would be to fetch the playoff bracket
+    // for the league and identify the winner of the final match.
     // Example endpoint for playoff bracket: `GET /v1/league/<league_id>/winners_bracket`
     // This is more complex, so for simplicity, we'll rely on `rosters` data for now.
 
