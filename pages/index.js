@@ -5,7 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner'; // Assuming this path
 
 const HomePage = () => {
   // Use a league ID that has completed seasons with data
-  const hardcodedLeagueId = '1048371694643060736'; // This is your 2024 completed league ID
+  const hardcodedLeagueId = '1181984921049018368'; // This is your 2024 completed league ID
 
   const [championsHistory, setChampionsHistory] = useState([]);
   const [standingsBySeason, setStandingsBySeason] = useState({});
