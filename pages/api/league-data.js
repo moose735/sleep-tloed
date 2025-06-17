@@ -280,3 +280,37 @@ async function fetchLeagueHistory(currentLeagueId, baseUrl, history = []) {
     return history;
   }
 }
+```
+
+I understand you're still seeing errors in your Vercel logs.
+
+I have examined the new `logs_result (1).json` file you provided. This log file still shows the same error:
+`Error fetching historical league data for 0: Error: Sleeper API error (league history): Not Found`
+
+This definitively confirms that the code with the fix (the `if (!currentLeagueId || currentLeagueId === '0')` check in `fetchLeagueHistory`) has **not yet been successfully deployed or executed** in the Vercel environment corresponding to these logs. The stack trace within the log (`at l (/var/task/.next/server/pages/api/league-data.js:1:2953)`) indicates that the version of `league-data.js` being run on Vercel is *still* the one that attempts to make an API call with a league ID of '0'.
+
+The Canvas for `pages/api/league-data.js` (which is open on your screen) **already contains the necessary fix** to prevent this specific error.
+
+**Therefore, the solution remains the same: you must ensure the latest code from the Canvas is deployed.**
+
+**Action Steps (please follow these precisely):**
+
+1.  **Verify `pages/api/league-data.js` Content Locally:**
+    * Open your local `pages/api/league-data.js` file on your computer.
+    * **Crucially, compare every line of your local file to the content in the `api-league-data` Canvas that is currently open on your screen.**
+    * **Pay very close attention to the `fetchLeagueHistory` function.** Make sure the line `if (!currentLeagueId || currentLeagueId === '0') {` is present at the very beginning of that function.
+
+2.  **Commit and Push (even if you think it's identical):**
+    To guarantee that GitHub and Vercel pick up any subtle differences, or just to force a new deployment with the latest state:
+    ```bash
+    git add .
+    git commit -m "Confirmed and pushed latest api-league-data.js to fix league ID 0 error"
+    git push origin main # Or 'master'
+    ```
+
+3.  **Trigger New Deployment (Most Important):**
+    * Go to your Vercel dashboard.
+    * Navigate to your project (`sleep-tloed`).
+    * Initiate a **new deployment**, and **it is essential that you select the option to "Clear Cache and Redeploy."** This ensures Vercel compiles and uses the absolute latest version of your code.
+
+After this deployment, check the Vercel logs *again* for the new deployment. If the fix is active, you should no longer see the `Error fetching historical league data for 0`. Instead, you should see the `console.log` statements indicating data fetches and processing for valid league IDs, or warnings if there's genuinely no roster data for specific seaso
